@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全球智库聚合器 | 100+ 顶级信息源实时更新</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9edf2 100%);
+            color: #1a2c3e;
+            padding: 2rem 1rem;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        /* 头部 */
+        .header { text-align: center; margin-bottom: 2rem; }
+        .header h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #0a2b3e, #1c5a7a, #2c8cae);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .badge {
+            display: inline-block;
+            background: rgba(28, 90, 122, 0.1);
+            padding: 0.3rem 1rem;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            color: #1c5a7a;
+            margin-top: 0.5rem;
+        }
+
+        /* 统计卡片 */
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 1rem;
+            flex: 1;
+            min-width: 120px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .stat-number { font-size: 1.8rem; font-weight: 700; color: #1c5a7a; }
+        .stat-label { font-size: 0.8rem; color: #6c7a8a; margin-top: 0.25rem; }
+
+        /* 筛选栏 */
+        .filter-section {
+            background: white;
+            padding: 1rem;
+            border-radius: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .filter-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #4a627a;
+            margin-bottom: 0.5rem;
+        }
+        .filter-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .filter-btn {
+            background: #f1f5f9;
+            border: none;
+            padding: 0.4rem 1rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .filter-btn:hover { background: #e2e8f0; transform: translateY(-1px); }
+        .filter-btn.active {
+            background: #1c5a7a;
+            color: white;
+            box-shadow: 0 2px 6px rgba(28,90,122,0.2);
+        }
+
+        /* 文章网格 */
+        .articles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 1.5rem;
+        }
+        .article-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.25rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .article-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 0.8rem;
+            flex-wrap: wrap;
+        }
+        .source-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            object-fit: contain;
+        }
+        .source-name {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #1c5a7a;
+            background: #e8f0f5;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+        }
+        .country-badge {
+            font-size: 0.65rem;
+            background: #f0f0f0;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            color: #666;
+        }
+        .article-title {
+            font-size: 1rem;
+            font-weight: 600;
+            line-height: 1.4;
+            margin: 0.5rem 0;
+            color: #1a2c3e;
+        }
+        .article-title a {
+            text-decoration: none;
+            color: #1a2c3e;
+            transition: color 0.2s;
+        }
+        .article-title a:hover {
+            color: #1c5a7a;
+            text-decoration: underline;
+        }
+        .article-meta {
+            font-size: 0.7rem;
+            color: #8c9aa8;
+            margin-top: 0.8rem;
+            padding-top: 0.6rem;
+            border-top: 1px solid #eef2f6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .publish-date {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .loading { text-align: center; padding: 3rem; color: #6c7a8a; }
+        footer {
+            margin-top: 3rem;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #8c9aa8;
+            padding-top: 1.5rem;
+            border-top: 1px solid #dce3ec;
+        }
+        @media (max-width: 640px) {
+            .articles-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🌐 全球顶级智库聚合器</h1>
+        <div class="badge">📊 100+ 信息源 | 🌍 覆盖全球 | 🔄 实时更新 | 📅 按最新时间排序</div>
+    </div>
+
+    <div class="stats" id="stats">
+        <div class="stat-card"><div class="stat-number" id="totalCount">0</div><div class="stat-label">总文章数</div></div>
+        <div class="stat-card"><div class="stat-number" id="sourceCount">0</div><div class="stat-label">信息来源</div></div>
+        <div class="stat-card"><div class="stat-number" id="countryCount">0</div><div class="stat-label">覆盖国家</div></div>
+        <div class="stat-card"><div class="stat-number" id="updateTime">--:--</div><div class="stat-label">最后更新</div></div>
+    </div>
+
+    <div class="filter-section">
+        <div class="filter-title">📂 按类别筛选</div>
+        <div class="filter-buttons" id="categoryFilter">
+            <button class="filter-btn active" data-category="all">全部</button>
+        </div>
+    </div>
+
+    <div class="filter-section">
+        <div class="filter-title">🌏 按国家/地区筛选</div>
+        <div class="filter-buttons" id="countryFilter">
+            <button class="filter-btn active" data-country="all">全部国家</button>
+        </div>
+    </div>
+
+    <div id="articlesContainer" class="articles-grid">
+        <div class="loading">✨ 正在加载全球智库最新洞见...</div>
+    </div>
+
+    <footer>
+        💡 基于官方 RSS 订阅源聚合 | 按发布时间倒序排列（最新文章优先）| 数据缓存10分钟<br>
+        涵盖美国、中国、英国、德国、日本、印度、澳大利亚、巴西、南非等全球顶级智库
+    </footer>
+</div>
+
+<script>
+    let allArticles = [];
+    let allSources = [];
+    let currentCategory = 'all';
+    let currentCountry = 'all';
+
+    const container = document.getElementById('articlesContainer');
+    const totalCountSpan = document.getElementById('totalCount');
+    const sourceCountSpan = document.getElementById('sourceCount');
+    const countryCountSpan = document.getElementById('countryCount');
+    const updateTimeSpan = document.getElementById('updateTime');
+
+    async function fetchArticles() {
+        try {
+            const [articlesRes, sourcesRes, statsRes] = await Promise.all([
+                fetch('/api/articles'),
+                fetch('/api/sources'),
+                fetch('/api/stats')
+            ]);
+
+            allArticles = await articlesRes.json();
+            allSources = await sourcesRes.json();
+            const stats = await statsRes.json();
+
+            sourceCountSpan.textContent = stats.total_sources;
+            countryCountSpan.textContent = Object.keys(stats.country_stats).length;
+            totalCountSpan.textContent = allArticles.length;
+
+            // 渲染筛选按钮
+            renderCategoryFilters();
+            renderCountryFilters(Object.keys(stats.country_stats));
+
+            renderArticles();
+            updateTime();
+        } catch (err) {
+            console.error('加载失败:', err);
+            container.innerHTML = `<div class="loading">⚠️ 获取文章失败，请检查网络<br>${err.message}</div>`;
+        }
+    }
+
+    function renderCategoryFilters() {
+        const categories = [...new Set(allSources.map(s => s.category))];
+        const container = document.getElementById('categoryFilter');
+        let html = `<button class="filter-btn ${currentCategory === 'all' ? 'active' : ''}" data-category="all">全部</button>`;
+        categories.forEach(cat => {
+            html += `<button class="filter-btn ${currentCategory === cat ? 'active' : ''}" data-category="${cat}">${cat}</button>`;
+        });
+        container.innerHTML = html;
+
+        document.querySelectorAll('#categoryFilter .filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#categoryFilter .filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentCategory = btn.dataset.category;
+                renderArticles();
+            });
+        });
+    }
+
+    function renderCountryFilters(countries) {
+        const container = document.getElementById('countryFilter');
+        let html = `<button class="filter-btn ${currentCountry === 'all' ? 'active' : ''}" data-country="all">全部国家</button>`;
+        countries.sort().forEach(country => {
+            html += `<button class="filter-btn ${currentCountry === country ? 'active' : ''}" data-country="${country}">${country}</button>`;
+        });
+        container.innerHTML = html;
+
+        document.querySelectorAll('#countryFilter .filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#countryFilter .filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentCountry = btn.dataset.country;
+                renderArticles();
+            });
+        });
+    }
+
+    function renderArticles() {
+        let filtered = allArticles;
+        if (currentCategory !== 'all') {
+            filtered = filtered.filter(art => art.category === currentCategory);
+        }
+        if (currentCountry !== 'all') {
+            filtered = filtered.filter(art => art.country === currentCountry);
+        }
+
+        if (filtered.length === 0) {
+            container.innerHTML = `<div class="loading">📭 暂无该分类的文章</div>`;
+            return;
+        }
+
+        let html = '';
+        filtered.forEach(article => {
+            // 直接使用后端格式化好的时间（已包含年份）
+            const publishTime = article.published || '时间未知';
+
+            html += `
+                <div class="article-card">
+                    <div class="card-header">
+                        <img class="source-icon" src="${escapeHtml(article.icon || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png')}"
+                             onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
+                        <span class="source-name">${escapeHtml(article.source_cn || article.source)}</span>
+                        <span class="country-badge">${escapeHtml(article.country || '国际')}</span>
+                    </div>
+                    <div class="article-title">
+                        <a href="${escapeHtml(article.link)}" target="_blank" rel="noopener noreferrer">
+                            ${escapeHtml(article.title)}
+                        </a>
+                    </div>
+                    <div class="article-meta">
+                        <span class="publish-date">📅 ${escapeHtml(publishTime)}</span>
+                        <span>🔗 <a href="${escapeHtml(article.link)}" target="_blank" style="color:#1c5a7a;">阅读原文</a></span>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    function updateTime() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        updateTimeSpan.textContent = `${year}-${month}-${day} ${hours}:${minutes}`;
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    // 初始加载
+    fetchArticles();
+    // 每10分钟自动刷新
+    setInterval(fetchArticles, 10 * 60 * 1000);
+</script>
+</body>
+</html>
