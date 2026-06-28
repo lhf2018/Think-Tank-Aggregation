@@ -2114,6 +2114,32 @@ def get_country_stats():
     return stats
 
 
+SOURCE_TYPE_LABELS = {
+    'think_tank': '智库',
+    'international': '国际组织',
+    'media': '认知媒体',
+    'journal': '学术期刊',
+    'policy': '经济政策',
+}
+
+
+def get_source_type(category):
+    """将配置中的 category 映射为来源类型（与国家级智库标签解耦）。"""
+    if category == '国际组织':
+        return 'international'
+    if category == '认知网站':
+        return 'media'
+    if category == '学术期刊':
+        return 'journal'
+    if category == '经济政策':
+        return 'policy'
+    return 'think_tank'
+
+
+def get_source_type_label(category):
+    return SOURCE_TYPE_LABELS[get_source_type(category)]
+
+
 # 按类别统计
 def get_category_stats():
     stats = {}

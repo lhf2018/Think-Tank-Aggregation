@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全球智库聚合器</title>
+    <title>Agora · 全球智库简报</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -75,19 +75,23 @@
         }
 
         .hero h1 {
-            font-size: clamp(1.75rem, 4vw, 2.75rem);
+            font-family: 'DM Sans', 'Noto Sans SC', sans-serif;
+            font-size: clamp(2rem, 5vw, 3rem);
             font-weight: 700;
-            letter-spacing: -0.02em;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
             background: linear-gradient(135deg, #fff 0%, var(--accent) 50%, var(--accent-2) 100%);
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
         }
 
-        .hero p {
+        .hero-tagline {
             color: var(--text-muted);
-            font-size: 0.95rem;
+            font-size: 0.8125rem;
+            font-weight: 400;
+            letter-spacing: 0.02em;
             max-width: 520px;
             margin: 0 auto;
         }
@@ -343,13 +347,43 @@
             border-radius: 999px;
         }
 
-        .country-badge, .category-badge {
+        .country-badge, .type-badge {
             font-size: 0.65rem;
             padding: 0.12rem 0.45rem;
             border-radius: 999px;
             background: var(--bg-soft);
             color: var(--text-muted);
             border: 1px solid var(--border);
+        }
+
+        .type-badge {
+            color: var(--accent-2);
+            border-color: rgba(91, 141, 239, 0.35);
+            background: rgba(91, 141, 239, 0.1);
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .filters-grid { grid-template-columns: 1fr; }
+        }
+
+        .panel-country .filter-btn.active {
+            background: linear-gradient(135deg, rgba(61, 214, 198, 0.2), rgba(61, 214, 198, 0.08));
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .panel-type .filter-btn.active {
+            background: linear-gradient(135deg, rgba(91, 141, 239, 0.22), rgba(91, 141, 239, 0.08));
+            border-color: var(--accent-2);
+            color: var(--accent-2);
+            box-shadow: 0 0 20px rgba(91, 141, 239, 0.2);
         }
 
         .article-title {
@@ -452,9 +486,9 @@
 <body>
 <div class="container">
     <header class="hero">
-        <div class="hero-badge">🌍 200 信息源 · 40+ 国家 · 分页浏览</div>
-        <h1>全球智库聚合器</h1>
-        <p>汇聚全球顶级智库与政策研究机构的最新洞见，按时间倒序呈现，支持分类筛选与分页浏览。</p>
+        <div class="hero-badge">🌍 200 信息源 · 40+ 国家</div>
+        <h1>Agora</h1>
+        <p class="hero-tagline">全球智库与政策研究机构 RSS 聚合</p>
     </header>
 
     <div class="stats">
@@ -476,17 +510,19 @@
         </div>
     </div>
 
-    <div class="panel">
-        <div class="panel-title">按类别筛选</div>
-        <div class="filter-scroll" id="categoryFilter">
-            <button class="filter-btn active" data-category="all">全部</button>
+    <div class="filters-grid">
+        <div class="panel panel-country">
+            <div class="panel-title">国家 / 地区</div>
+            <div class="filter-scroll" id="countryFilter">
+                <button class="filter-btn active" data-country="all">全部</button>
+            </div>
         </div>
-    </div>
 
-    <div class="panel">
-        <div class="panel-title">按国家/地区筛选</div>
-        <div class="filter-scroll" id="countryFilter">
-            <button class="filter-btn active" data-country="all">全部国家</button>
+        <div class="panel panel-type">
+            <div class="panel-title">来源类型</div>
+            <div class="filter-scroll" id="typeFilter">
+                <button class="filter-btn active" data-source-type="all">全部</button>
+            </div>
         </div>
     </div>
 
@@ -514,7 +550,7 @@
 <script>
     const PER_PAGE = 24;
     let allSources = [];
-    let currentCategory = 'all';
+    let currentSourceType = 'all';
     let currentCountry = 'all';
     let currentPage = 1;
     let paginationMeta = null;
@@ -540,7 +576,7 @@
             sourceCountSpan.textContent = stats.total_sources;
             countryCountSpan.textContent = Object.keys(stats.country_stats).length;
 
-            renderCategoryFilters();
+            renderTypeFilters();
             renderCountryFilters(Object.keys(stats.country_stats));
 
             await waitForCacheAndLoad();
@@ -583,7 +619,7 @@
         const params = new URLSearchParams({
             page: page,
             per_page: PER_PAGE,
-            category: currentCategory,
+            source_type: currentSourceType,
             country: currentCountry
         });
 
@@ -645,20 +681,28 @@
         </div>`;
     }
 
-    function renderCategoryFilters() {
-        const categories = [...new Set(allSources.map(s => s.category))].sort();
-        const el = document.getElementById('categoryFilter');
-        let html = `<button class="filter-btn ${currentCategory === 'all' ? 'active' : ''}" data-category="all">全部</button>`;
-        categories.forEach(cat => {
-            html += `<button class="filter-btn ${currentCategory === cat ? 'active' : ''}" data-category="${escapeHtml(cat)}">${escapeHtml(cat)}</button>`;
+    const SOURCE_TYPES = [
+        { id: 'all', label: '全部' },
+        { id: 'think_tank', label: '智库' },
+        { id: 'international', label: '国际组织' },
+        { id: 'media', label: '认知媒体' },
+        { id: 'journal', label: '学术期刊' },
+        { id: 'policy', label: '经济政策' },
+    ];
+
+    function renderTypeFilters() {
+        const el = document.getElementById('typeFilter');
+        let html = '';
+        SOURCE_TYPES.forEach(({ id, label }) => {
+            html += `<button class="filter-btn ${currentSourceType === id ? 'active' : ''}" data-source-type="${id}">${label}</button>`;
         });
         el.innerHTML = html;
-        bindFilterClicks(el, 'category');
+        bindFilterClicks(el, 'source_type');
     }
 
     function renderCountryFilters(countries) {
         const el = document.getElementById('countryFilter');
-        let html = `<button class="filter-btn ${currentCountry === 'all' ? 'active' : ''}" data-country="all">全部国家</button>`;
+        let html = `<button class="filter-btn ${currentCountry === 'all' ? 'active' : ''}" data-country="all">全部</button>`;
         countries.sort().forEach(country => {
             html += `<button class="filter-btn ${currentCountry === country ? 'active' : ''}" data-country="${escapeHtml(country)}">${escapeHtml(country)}</button>`;
         });
@@ -671,8 +715,8 @@
             btn.addEventListener('click', () => {
                 el.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                if (type === 'category') {
-                    currentCategory = btn.dataset.category;
+                if (type === 'source_type') {
+                    currentSourceType = btn.dataset.sourceType;
                 } else {
                     currentCountry = btn.dataset.country;
                 }
@@ -702,7 +746,7 @@
                              alt="" onerror="this.style.display='none'">
                         <span class="source-name">${escapeHtml(article.source_cn || article.source)}</span>
                         <span class="country-badge">${escapeHtml(article.country || '国际')}</span>
-                        <span class="category-badge">${escapeHtml(article.category || '')}</span>
+                        <span class="type-badge">${escapeHtml(article.source_type_label || '智库')}</span>
                     </div>
                     <h2 class="article-title">
                         <a href="${escapeHtml(article.link)}" target="_blank" rel="noopener noreferrer">

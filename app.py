@@ -6,7 +6,14 @@ from flask_caching import Cache
 import requests
 from datetime import datetime, timezone
 import concurrent.futures
-from config import THINK_TANKS_CONFIG, get_country_stats, get_category_stats
+from config import (
+    THINK_TANKS_CONFIG,
+    get_country_stats,
+    get_category_stats,
+    get_source_type,
+    get_source_type_label,
+    SOURCE_TYPE_LABELS,
+)
 import time
 from email.utils import parsedate_to_datetime
 import threading
@@ -109,6 +116,7 @@ def fetch_feed(feed_info):
                 # 解析时间戳用于排序
                 pub_timestamp = parse_pub_date(pub_date_str)
 
+                category = feed_info.get('category', '其他')
                 articles.append({
                     'title': entry.title,
                     'link': entry.link,
@@ -118,7 +126,9 @@ def fetch_feed(feed_info):
                     'source': feed_info['name'],
                     'source_cn': feed_info['name_cn'],
                     'icon': feed_info.get('icon', ''),
-                    'category': feed_info.get('category', '其他'),
+                    'category': category,
+                    'source_type': get_source_type(category),
+                    'source_type_label': get_source_type_label(category),
                     'country': feed_info.get('country', '其他'),
                     'priority': feed_info.get('priority', 2),
                     'description': feed_info.get('description', '')
@@ -201,10 +211,16 @@ def fetch_all_articles():
     return all_articles
 
 
-def filter_articles(articles, category='all', country='all'):
+def article_source_type(article):
+    if article.get('source_type'):
+        return article['source_type']
+    return get_source_type(article.get('category', '其他'))
+
+
+def filter_articles(articles, source_type='all', country='all'):
     filtered = articles
-    if category and category != 'all':
-        filtered = [a for a in filtered if a.get('category') == category]
+    if source_type and source_type != 'all':
+        filtered = [a for a in filtered if article_source_type(a) == source_type]
     if country and country != 'all':
         filtered = [a for a in filtered if a.get('country') == country]
     return filtered
@@ -286,7 +302,7 @@ def get_articles_status():
 def get_articles():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', DEFAULT_PER_PAGE, type=int)
-    category = request.args.get('category', 'all')
+    source_type = request.args.get('source_type', 'all')
     country = request.args.get('country', 'all')
 
     per_page = max(1, min(per_page, MAX_PER_PAGE))
@@ -308,7 +324,7 @@ def get_articles():
             'message': '正在聚合全球智库文章，请稍候...',
         })
 
-    filtered = filter_articles(articles, category, country)
+    filtered = filter_articles(articles, source_type, country)
     page_items, pagination = paginate_items(filtered, page, per_page)
 
     return jsonify({
@@ -326,6 +342,8 @@ def get_sources():
         'name': s['name'],
         'name_cn': s['name_cn'],
         'category': s.get('category', '其他'),
+        'source_type': get_source_type(s.get('category', '其他')),
+        'source_type_label': get_source_type_label(s.get('category', '其他')),
         'country': s.get('country', '其他'),
         'icon': s.get('icon', ''),
         'description': s.get('description', '')
@@ -339,7 +357,8 @@ def get_stats():
     return jsonify({
         'total_sources': len(THINK_TANKS_CONFIG),
         'country_stats': get_country_stats(),
-        'category_stats': get_category_stats()
+        'category_stats': get_category_stats(),
+        'source_type_labels': SOURCE_TYPE_LABELS,
     })
 
 

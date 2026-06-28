@@ -1,274 +1,243 @@
-# 全球顶级智库聚合器 (Global Think Tank Aggregator)
+# Agora
 
-一个基于 Flask 的 Web 应用，实时聚合全球 100+ 顶级智库、研究机构和认知网站的最新文章，支持多维度筛选和智能排序。
+全球智库与政策研究机构 RSS 聚合
 
-## ✨ 功能特点
+[Agora](https://github.com/lhf2018/Think-Tank-Aggregation) 是一个基于 Flask 的 Web 应用，聚合全球智库、国际组织、政策媒体与学术期刊的 RSS 内容，按发布时间倒序展示，支持国家/地区与来源类型筛选、分页浏览。
 
-- 🌍 **100+ 信息源**：覆盖全球 30+ 国家和地区的顶级智库
-- 📊 **多维度筛选**：按类别、国家/地区筛选文章
-- 📅 **智能排序**：按发布时间倒序排列，最新文章优先
-- 🎨 **响应式设计**：完美支持桌面端和移动端
-- ⚡ **实时更新**：数据缓存 10 分钟，自动刷新
-- 🔒 **零爬虫风险**：全部使用官方 RSS 订阅源，符合 robots 协议
-- 🌐 **国际化**：支持中英文标题显示
+## 功能特点
 
-## 📦 信息源覆盖
+- **199 个信息源**，覆盖 **43** 个国家/地区
+- **双维度筛选**：国家/地区 × 来源类型（智库、国际组织、认知媒体、学术期刊、经济政策）
+- **分页加载**：默认每页 24 条，避免一次性渲染大量卡片
+- **后台预热**：启动后在后台抓取 RSS，首屏显示加载状态，完成后自动刷新
+- **内存缓存**：抓取结果缓存 10 分钟，降低对源站的压力
+- **合规抓取**：优先使用官方 RSS；无 RSS 的智库通过 Google News 站点订阅补充
+- **深色界面**：响应式布局，适配桌面与移动端
 
-### 按地区分布
-- **北美**：美国、加拿大 (30+)
-- **欧洲**：英国、德国、法国、意大利、瑞典、比利时等 (25+)
-- **亚洲**：中国、日本、韩国、印度、新加坡等 (20+)
-- **中东**：以色列、沙特、阿联酋、卡塔尔、土耳其 (10+)
-- **大洋洲**：澳大利亚、新西兰 (5+)
-- **拉丁美洲**：巴西、阿根廷、墨西哥 (5+)
-- **非洲**：南非、肯尼亚 (3+)
-- **国际组织**：多边机构 (3+)
+## 信息源概览
 
-### 按类别分类
-- 美国智库
-- 中国智库
-- 欧洲智库
-- 亚洲智库
-- 经济政策
-- 认知网站
-- 学术期刊
-- 国际组织
+| 来源类型 | 数量 | 说明 |
+|----------|------|------|
+| 智库 | 170 | 各国/地区政策研究机构（含欧盟智库等） |
+| 国际组织 | 12 | 国际危机组织、经合组织等 |
+| 认知媒体 | 12 | Foreign Affairs、War on the Rocks 等 |
+| 学术期刊 | 3 | Nature、Science、The Lancet 等 |
+| 经济政策 | 2 | 彼得森研究所、NBER 等 |
 
-### 代表性智库
-- **美国**：布鲁金斯学会、兰德公司、卡内基国际和平基金会
-- **中国**：中国社会科学院、中国现代国际关系研究院
-- **英国**：查塔姆研究所、国际战略研究所
-- **欧洲**：布鲁盖尔研究所、德国国际与安全事务研究所
-- **国际**：国际危机组织、斯德哥尔摩国际和平研究所
+**地区覆盖（部分）**：中国、美国、英国、德国、法国、日本、韩国、印度、巴西、以色列、沙特、澳大利亚，以及泰国、菲律宾、越南、巴基斯坦、伊朗、埃及、尼日利亚、智利、哥伦比亚等。
 
-## 🚀 快速开始
+完整列表见 [`config.py`](./config.py) 中的 `THINK_TANKS_CONFIG`。
+
+## 快速开始
 
 ### 环境要求
+
 - Python 3.8+
-- pip (Python包管理器)
+- 可访问 RSS 源及 Google News（部分源依赖后者）
 
-### 安装步骤
+### 安装与运行
 
-1. **克隆项目**
 ```bash
-git clone <repository-url>
-cd think-tank-aggregator
-```
+git clone https://github.com/lhf2018/Think-Tank-Aggregation.git
+cd Think-Tank-Aggregation
 
-2. **创建虚拟环境（推荐）**
-```bash
+# 创建虚拟环境（推荐）
+python -m venv venv
+
 # Windows
-python -m venv venv
 venv\Scripts\activate
+# macOS / Linux
+# source venv/bin/activate
 
-# Mac/Linux
-python -m venv venv
-source venv/bin/activate
-```
-
-3. **安装依赖**
-```bash
 pip install -r requirements.txt
-```
-
-4. **运行应用**
-```bash
 python app.py
 ```
 
-5. **访问应用**
-打开浏览器访问：`http://localhost:5000`
+浏览器访问：**http://localhost:5000**
 
-## 📁 项目结构
+> **首次加载**：应用会在后台并发抓取约 200 个 RSS 源，通常需要 1–2 分钟。页面会自动轮询 `/api/articles/status`，抓取完成后显示文章列表。
+
+## 使用说明
+
+### 筛选
+
+- **国家 / 地区**：按文章来源所在国家筛选（如「中国」「美国」「国际」）
+- **来源类型**：按内容性质筛选，与国家级「某某智库」标签解耦
+  - `智库` — 各国政策研究机构
+  - `国际组织` — 多边机构与非政府组织
+  - `认知媒体` — 评论与政策分析网站
+  - `学术期刊` — 学术出版物 RSS
+  - `经济政策` — 经济类研究机构
+
+两个维度可组合使用，例如「美国 + 认知媒体」。
+
+### 分页
+
+- 底部分页栏切换页码，每页 24 条（API 最大 60 条/页）
+- 切换筛选条件时自动回到第 1 页
+
+## 项目结构
 
 ```
-think-tank-aggregator/
-│
-├── app.py                      # Flask 后端主程序
-├── config.py                   # 信息源配置文件（100+ 智库）
-├── requirements.txt            # Python 依赖包
+Think-Tank-Aggregation/
+├── app.py              # Flask 应用：抓取、缓存、API
+├── config.py           # 信息源配置（THINK_TANKS_CONFIG）
+├── requirements.txt    # Python 依赖
 ├── templates/
-│   └── index.html              # 前端页面模板
-└── README.md                   # 项目说明文档
+│   └── index.html      # 前端页面
+├── TODO.md             # 后续规划（SQLite、搜索等）
+└── README.md
 ```
 
-## 🔧 配置说明
+## 配置说明
 
-### 添加新的信息源
+### 添加信息源
 
-编辑 `config.py` 文件，在 `THINK_TANKS_CONFIG` 列表中添加：
+在 `config.py` 的 `THINK_TANKS_CONFIG` 中追加条目：
 
 ```python
 {
-    "name": "智库英文名",
-    "name_cn": "智库中文名",
-    "rss": "RSS订阅地址",
-    "icon": "图标URL",
-    "category": "分类",
-    "country": "国家",
-    "priority": 1,  # 1=高优先级, 2=普通
-    "description": "简要描述"
+    "name": "Brookings Institution",
+    "name_cn": "布鲁金斯学会",
+    "rss": "https://example.com/feed.xml",
+    "icon": "https://example.com/favicon.ico",
+    "category": "美国智库",       # 内部标签，用于映射来源类型
+    "country": "美国",
+    "priority": 1,               # 1 = 高优先级，2 = 普通
+    "description": "美国知名公共政策智库"
 }
 ```
 
-### 修改缓存时间
+**`category` 与来源类型的映射**（见 `config.py` 中 `get_source_type`）：
 
-在 `app.py` 中调整：
+| category 值 | 来源类型 |
+|-------------|----------|
+| `国际组织` | 国际组织 |
+| `认知网站` | 认知媒体 |
+| `学术期刊` | 学术期刊 |
+| `经济政策` | 经济政策 |
+| 其他（如 `美国智库`） | 智库 |
+
+无官方 RSS 时，可使用文件顶部的 `GNEWS_CN` / `GNEWS_US` / `GNEWS_SITE` 模板生成 Google News 站点订阅 URL。
+
+### 调整缓存时间
+
+`app.py`：
 
 ```python
-app.config['CACHE_DEFAULT_TIMEOUT'] = 600  # 单位：秒，默认10分钟
+app.config['CACHE_DEFAULT_TIMEOUT'] = 600  # 秒，默认 10 分钟
 ```
 
-### 调整并发抓取数量
+### 调整并发抓取
 
-修改 `fetch_all_articles()` 函数中的 `max_workers` 参数：
+`fetch_all_articles()` 中的 `max_workers`（默认 5）和 `batch_size`（默认 10）。
 
-```python
-with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+## API 接口
+
+### `GET /api/articles`
+
+分页获取文章列表。
+
+| 参数 | 类型 | 默认 | 说明 |
+|------|------|------|------|
+| `page` | int | 1 | 页码 |
+| `per_page` | int | 24 | 每页条数（最大 60） |
+| `country` | string | `all` | 国家/地区，如 `中国`、`美国` |
+| `source_type` | string | `all` | `think_tank` / `international` / `media` / `journal` / `policy` |
+
+**响应示例**（抓取完成后）：
+
+```json
+{
+  "articles": [
+    {
+      "title": "...",
+      "link": "...",
+      "published": "2024-03-20 10:30",
+      "source": "Brookings Institution",
+      "source_cn": "布鲁金斯学会",
+      "country": "美国",
+      "source_type": "think_tank",
+      "source_type_label": "智库"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 24,
+    "total": 856,
+    "total_pages": 36,
+    "has_prev": false,
+    "has_next": true
+  },
+  "loading": false,
+  "cached_at": "2024-03-20T12:00:00"
+}
 ```
 
-## 📊 API 接口
+抓取进行中时 `loading: true`，`articles` 为空数组。
 
-### 获取文章列表
+### `GET /api/articles/status`
+
+查询后台抓取状态。
+
+```json
+{
+  "ready": true,
+  "loading": false,
+  "total": 856,
+  "cached_at": "2024-03-20T12:00:00"
+}
 ```
-GET /api/articles
-```
-返回所有文章数据（JSON格式）
 
-### 获取信息源列表
-```
-GET /api/sources
-```
-返回所有信息源配置
+### `GET /api/sources`
 
-### 获取统计信息
-```
-GET /api/stats
-```
-返回信息源统计（总数、国家分布、类别分布）
+返回全部信息源配置（名称、国家、来源类型等）。
 
-## 🎯 使用指南
+### `GET /api/stats`
 
-### 筛选文章
-- **按类别筛选**：点击"按类别筛选"下的按钮
-- **按国家筛选**：点击"按国家/地区筛选"下的按钮
+返回统计信息：`total_sources`、`country_stats`、`category_stats`、`source_type_labels`。
 
-### 查看文章
-- 点击文章标题或"阅读原文"链接，在新标签页打开原文
-- 文章按发布时间倒序排列，最新文章在最前面
+## 技术栈
 
-### 刷新数据
-- 页面每 10 分钟自动刷新
-- 手动刷新浏览器即可获取最新数据
+| 层级 | 技术 |
+|------|------|
+| 后端 | Flask、Flask-Caching、feedparser、requests、python-dateutil |
+| 前端 | HTML / CSS / 原生 JavaScript（Fetch API） |
+| 并发 | `ThreadPoolExecutor` 分批抓取 RSS |
 
-## 🛠️ 技术栈
+## 常见问题
 
-### 后端
-- **Flask**：Web 框架
-- **Flask-Caching**：缓存管理
-- **feedparser**：RSS 解析
-- **requests**：HTTP 请求
-- **python-dateutil**：时间解析
+**Q: 首次打开页面一直 loading？**  
+A: 全量抓取约 200 个源需要 1–2 分钟，请等待后台完成；也可查看终端日志确认进度。
 
-### 前端
-- **HTML5/CSS3**：页面结构
-- **JavaScript (ES6)**：交互逻辑
-- **Fetch API**：数据请求
-- **CSS Grid/Flexbox**：响应式布局
+**Q: 部分源没有文章？**  
+A: RSS 失效、源站限流或 Google News 在本地网络不可达时，该源会被跳过，不影响其他源。
 
-## 📈 性能优化
+**Q: 筛选后结果为空？**  
+A: 检查国家与来源类型组合是否过窄；例如「国际 + 智库」可能几乎没有匹配项。
 
-- **并发抓取**：使用 ThreadPoolExecutor 并发处理多个 RSS 源
-- **智能缓存**：数据缓存 10 分钟，减少请求频率
-- **分批处理**：避免同时请求过多源，降低被封风险
-- **优先级策略**：高优先级源优先抓取，确保重要内容快速显示
+**Q: 如何强制刷新数据？**  
+A: 重启服务或等待 10 分钟缓存过期后重新请求。
 
-## 🔒 安全说明
+**Q: 国内访问 Google News 源不稳定？**  
+A: 可在 `config.py` 中将对应条目改为直连 RSS，或使用 `GNEWS_CN` 模板。
 
-- **合法数据源**：全部使用官方 RSS 订阅源，遵守 robots.txt 协议
-- **用户代理**：设置合理的 User-Agent，表明身份
-- **请求控制**：限制并发数和请求频率，避免对源站造成压力
+## 后续计划
 
-## 🐛 常见问题
+详见 [TODO.md](./TODO.md)，主要包括：
 
-### Q: 某些 RSS 源无法访问？
-A: 可能是网络问题或源站限制，程序会自动跳过并继续处理其他源。
+- SQLite 本地持久化（解决每次冷启动全量抓取）
+- 增量抓取与源健康度面板
+- 标题搜索、去重、`.gitignore` 与部署脚本
 
-### Q: 文章时间显示不准确？
-A: RSS 源提供的时间格式可能不统一，程序会自动尝试多种格式解析。
-
-### Q: 如何增加更多信息源？
-A: 在 `config.py` 中添加新的配置项即可，支持 RSS 2.0、Atom 等常见格式。
-
-### Q: 出现 "can't compare offset-naive and offset-aware datetimes" 错误？
-A: 已修复，所有时间统一转换为 UTC 无时区格式进行比较。
-
-## 🚧 后续计划
-
-- [ ] 添加文章摘要显示
-- [ ] 支持搜索功能
-- [ ] 添加数据库存储历史文章
-- [ ] 增加邮件订阅功能
-- [ ] 支持多语言界面
-- [ ] 添加文章收藏功能
-- [ ] 部署到云平台（Heroku/PythonAnywhere）
-
-## 📝 更新日志
-
-### v1.0.0 (2024-03-24)
-- 初始版本发布
-- 支持 100+ 全球智库
-- 实现多维度筛选
-- 按时间倒序排列
-- 响应式界面设计
-
-## 📄 许可证
+## 许可证
 
 MIT License
 
-## 🤝 贡献指南
+## 贡献
 
-欢迎提交 Issue 和 Pull Request！
-
-1. Fork 本项目
-2. 创建您的特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开 Pull Request
-
-## 📧 联系方式
-
-如有问题或建议，请通过以下方式联系：
-
-- 提交 Issue：[GitHub Issues]
-- 邮箱：[your-email@example.com]
-
-## 🙏 致谢
-
-感谢以下机构和网站提供的 RSS 订阅服务：
-
-- 所有被收录的智库和研究机构
-- Flask 开源社区
-- RSS 规范制定者
+欢迎提交 Issue 或 Pull Request。添加新信息源时，请优先使用官方 RSS，并在 PR 中说明来源与许可情况。
 
 ---
 
-**注意**：本应用仅用于学习和研究目的，请尊重各信息源的版权和使用条款。
-```
-
-这个 README 包含了：
-
-1. **项目概述**：清晰说明项目功能和特点
-2. **快速开始**：详细的安装和运行步骤
-3. **项目结构**：文件组织说明
-4. **配置指南**：如何添加新信息源和调整参数
-5. **API 文档**：接口说明
-6. **使用指南**：如何筛选和查看文章
-7. **技术栈**：使用的技术和框架
-8. **性能优化**：优化策略说明
-9. **安全说明**：合规性说明
-10. **常见问题**：故障排除
-11. **后续计划**：未来功能规划
-12. **更新日志**：版本记录
-
-您可以根据实际需要修改其中的邮箱地址、GitHub 仓库地址等信息。
+本应用仅供学习与个人阅读聚合使用，请遵守各信息源的版权与使用条款。
