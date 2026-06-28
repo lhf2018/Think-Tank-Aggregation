@@ -1,20 +1,25 @@
 # app.py
 import os
 import feedparser
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 from flask_caching import Cache
 import requests
 from datetime import datetime, timezone
 import concurrent.futures
-import hashlib
 from config import THINK_TANKS_CONFIG, get_country_stats, get_category_stats
 import time
 from email.utils import parsedate_to_datetime
+import threading
 
 app = Flask(__name__)
 app.config['CACHE_TYPE'] = 'SimpleCache'
 app.config['CACHE_DEFAULT_TIMEOUT'] = 600  # 缓存10分钟
 cache = Cache(app)
+
+DEFAULT_PER_PAGE = 24
+MAX_PER_PAGE = 60
+_fetch_lock = threading.Lock()
+_fetch_in_progress = False
 
 
 def make_naive(dt):
@@ -85,13 +90,19 @@ def fetch_feed(feed_info):
         }
         response = requests.get(feed_info['rss'], headers=headers, timeout=15)
         if response.status_code != 200:
-            print(f"Failed to fetch {feed_info['name']}: status {response.status_code}")
+            try:
+                print(f"Failed to fetch {feed_info['name']}: status {response.status_code}")
+            except UnicodeEncodeError:
+                print(f"Failed to fetch feed: status {response.status_code}")
             return []
 
         feed = feedparser.parse(response.content)
+        junk_titles = {'hello world!', 'hello world', 'test', 'sample page'}
         # 获取最新5篇文章
-        for entry in feed.entries[:5]:
+        for entry in feed.entries[:10]:
             if hasattr(entry, 'link') and hasattr(entry, 'title'):
+                if entry.title.strip().lower() in junk_titles:
+                    continue
                 # 获取发布时间（优先使用 published，其次 pubDate）
                 pub_date_str = entry.get('published', entry.get('pubDate', ''))
 
@@ -112,8 +123,13 @@ def fetch_feed(feed_info):
                     'priority': feed_info.get('priority', 2),
                     'description': feed_info.get('description', '')
                 })
+            if len(articles) >= 5:
+                break
     except Exception as e:
-        print(f"Error fetching {feed_info['name']}: {e}")
+        try:
+            print(f"Error fetching {feed_info['name']}: {type(e).__name__}")
+        except UnicodeEncodeError:
+            print(f"Error fetching feed: {type(e).__name__}")
     return articles
 
 
@@ -144,11 +160,10 @@ def fetch_all_articles():
         # 批次间休息
         time.sleep(0.5)
 
-    # 再处理普通优先级（只取前20个，避免太多）
-    normal_to_fetch = normal_priority[:20]
-    for i in range(0, len(normal_to_fetch), batch_size):
-        batch = normal_to_fetch[i:i + batch_size]
-        print(f"处理普通优先级批次 {i // batch_size + 1}/{(len(normal_to_fetch) - 1) // batch_size + 1}...")
+    # 处理普通优先级
+    for i in range(0, len(normal_priority), batch_size):
+        batch = normal_priority[i:i + batch_size]
+        print(f"处理普通优先级批次 {i // batch_size + 1}/{(len(normal_priority) - 1) // batch_size + 1}...")
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             future_to_feed = {executor.submit(fetch_feed, feed): feed for feed in batch}
@@ -186,19 +201,122 @@ def fetch_all_articles():
     return all_articles
 
 
+def filter_articles(articles, category='all', country='all'):
+    filtered = articles
+    if category and category != 'all':
+        filtered = [a for a in filtered if a.get('category') == category]
+    if country and country != 'all':
+        filtered = [a for a in filtered if a.get('country') == country]
+    return filtered
+
+
+def paginate_items(items, page, per_page):
+    total = len(items)
+    total_pages = max(1, (total + per_page - 1) // per_page) if total else 1
+    page = max(1, min(page, total_pages))
+    start = (page - 1) * per_page
+    end = start + per_page
+    return items[start:end], {
+        'page': page,
+        'per_page': per_page,
+        'total': total,
+        'total_pages': total_pages,
+        'has_prev': page > 1,
+        'has_next': page < total_pages,
+    }
+
+
+def ensure_articles_cached(async_fetch=True):
+    """确保文章已缓存；若未缓存则触发后台抓取。"""
+    global _fetch_in_progress
+
+    articles = cache.get('articles')
+    if articles is not None:
+        return articles, False
+
+    with _fetch_lock:
+        articles = cache.get('articles')
+        if articles is not None:
+            return articles, False
+
+        if _fetch_in_progress:
+            return None, True
+
+        def _fetch_and_cache():
+            global _fetch_in_progress
+            try:
+                result = fetch_all_articles()
+                cache.set('articles', result or [])
+                if result:
+                    cache.set('articles_cached_at', datetime.now().isoformat())
+            finally:
+                _fetch_in_progress = False
+
+        _fetch_in_progress = True
+        if async_fetch:
+            threading.Thread(target=_fetch_and_cache, daemon=True).start()
+            return None, True
+
+        _fetch_and_cache()
+        return cache.get('articles'), False
+
+
+def warm_cache_async():
+    ensure_articles_cached(async_fetch=True)
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
 
+@app.route('/api/articles/status')
+def get_articles_status():
+    articles = cache.get('articles')
+    cached_at = cache.get('articles_cached_at')
+    return jsonify({
+        'ready': articles is not None,
+        'loading': _fetch_in_progress or articles is None,
+        'total': len(articles) if articles else 0,
+        'cached_at': cached_at,
+    })
+
+
 @app.route('/api/articles')
 def get_articles():
-    articles = cache.get('articles')
-    if articles is None:
-        articles = fetch_all_articles()
-        if articles:
-            cache.set('articles', articles)
-    return jsonify(articles or [])
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', DEFAULT_PER_PAGE, type=int)
+    category = request.args.get('category', 'all')
+    country = request.args.get('country', 'all')
+
+    per_page = max(1, min(per_page, MAX_PER_PAGE))
+    page = max(1, page)
+
+    articles, loading = ensure_articles_cached(async_fetch=True)
+    if loading or articles is None:
+        return jsonify({
+            'articles': [],
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': 0,
+                'total_pages': 1,
+                'has_prev': False,
+                'has_next': False,
+            },
+            'loading': True,
+            'message': '正在聚合全球智库文章，请稍候...',
+        })
+
+    filtered = filter_articles(articles, category, country)
+    page_items, pagination = paginate_items(filtered, page, per_page)
+
+    return jsonify({
+        'articles': page_items,
+        'pagination': pagination,
+        'loading': False,
+        'cached_at': cache.get('articles_cached_at'),
+    })
 
 
 @app.route('/api/sources')
@@ -229,4 +347,7 @@ if __name__ == '__main__':
     os.makedirs('templates', exist_ok=True)
     print(f"已加载 {len(THINK_TANKS_CONFIG)} 个信息源")
     print(f"覆盖国家和地区: {len(get_country_stats())} 个")
+    warm_cache_async()
     app.run(debug=True, host='0.0.0.0', port=5000)
+elif os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+    warm_cache_async()
